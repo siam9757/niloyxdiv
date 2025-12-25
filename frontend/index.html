@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>License Management System</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <h1 class="header-title">License Management System</h1>
+            <button class="logout-btn" onclick="handleLogout()">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M6 14H3C2.46957 14 1.96086 13.7893 1.58579 13.4142C1.21071 13.0391 1 12.5304 1 12V4C1 3.46957 1.21071 2.96086 1.58579 2.58579C1.96086 2.21071 2.46957 2 3 2H6M11 11L15 7M15 7L11 3M15 7H6" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Logout
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Create License Section -->
+        <section class="card create-license-section">
+            <h2 class="section-title">Create License</h2>
+            <form class="create-form" id="createLicenseForm">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" placeholder="Enter username" required>
+                </div>
+                <div class="form-group">
+                    <label for="amount">Amount</label>
+                    <input type="number" id="amount" name="amount" value="0" min="0" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="licenseKey">License Key</label>
+                    <div class="license-key-input-group">
+                        <input type="text" id="licenseKey" name="licenseKey" placeholder="Enter or generate license key" maxlength="6" pattern="[A-Za-z]{6}" oninput="formatLicenseKey(this)" style="text-transform: uppercase;">
+                        <button type="button" class="generate-btn" onclick="generateLicenseKey()" title="Generate Random License Key">
+                            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M13.5 4.5L15.75 2.25L13.5 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M2.25 13.5L0 15.75L2.25 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M15.75 2.25C14.5071 1.00714 12.7093 0.28125 10.6875 0.28125C6.49388 0.28125 3.09375 3.68138 3.09375 7.875C3.09375 8.28921 2.75796 8.625 2.34375 8.625C1.92954 8.625 1.59375 8.28921 1.59375 7.875C1.59375 2.74912 5.74912 -1.40625 10.875 -1.40625C13.1593 -1.40625 15.3054 -0.398891 16.8438 1.125" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M2.25 15.75C3.49286 17.0071 5.29069 17.7188 7.3125 17.7188C11.5061 17.7188 14.9062 14.3186 14.9062 10.125C14.9062 9.71079 15.242 9.375 15.6562 9.375C16.0705 9.375 16.4062 9.71079 16.4062 10.125C16.4062 15.2509 12.2509 19.4062 7.125 19.4062C4.84069 19.4062 2.69464 18.3989 1.15625 16.875" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Generate</span>
+                        </button>
+                    </div>
+                </div>
+                <button type="submit" class="create-btn">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M10 4V16M4 10H16" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    Create
+                </button>
+            </form>
+        </section>
+
+        <!-- License List Section -->
+        <section class="card license-list-section">
+            <div class="section-header">
+                <h2 class="section-title">License List</h2>
+                <div class="search-container">
+                    <svg class="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M7.33333 12.6667C10.2789 12.6667 12.6667 10.2789 12.6667 7.33333C12.6667 4.38781 10.2789 2 7.33333 2C4.38781 2 2 4.38781 2 7.33333C2 10.2789 4.38781 12.6667 7.33333 12.6667Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M14 14L11.1 11.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <input type="text" id="searchInput" class="search-input" placeholder="Search..." oninput="handleSearch()">
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="license-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Username</th>
+                            <th>Amount</th>
+                            <th>License Key</th>
+                            <th>Devices</th>
+                            <th>Status</th>
+                            <th>Created At</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="licenseTableBody">
+                        <tr>
+                            <td colspan="8" class="empty-state">No licenses found. Create your first license above.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- Edit License Modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit License</h3>
+                <button class="modal-close" onclick="closeEditModal()">&times;</button>
+            </div>
+            <form id="editLicenseForm" class="edit-form">
+                <input type="hidden" id="editLicenseId">
+                <div class="form-group">
+                    <label for="editUsername">Username</label>
+                    <input type="text" id="editUsername" required>
+                </div>
+                <div class="form-group">
+                    <label for="editAmount">Amount</label>
+                    <input type="number" id="editAmount" min="0" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="editLicenseKey">License Key</label>
+                    <input type="text" id="editLicenseKey" maxlength="6" pattern="[A-Za-z]{6}" oninput="formatLicenseKey(this)" style="text-transform: uppercase;" required>
+                </div>
+                <div class="form-group">
+                    <label for="editDevices">Devices</label>
+                    <input type="number" id="editDevices" min="0" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" onclick="closeEditModal()">Cancel</button>
+                    <button type="submit" class="btn-save">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+
