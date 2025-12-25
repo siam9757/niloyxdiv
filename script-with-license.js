@@ -144,6 +144,12 @@
                 credentials: 'omit'
             });
 
+            // Handle 500 errors gracefully - server returns empty array on error
+            if (response.status === 500) {
+                console.warn(`[License] Server error (500). Server may be initializing. Keeping current state.`);
+                return isLicenseActive; // Keep current state on server error
+            }
+            
             if (!response.ok) {
                 // Try to get error message from response
                 let errorMsg = `HTTP error! status: ${response.status}`;
@@ -151,42 +157,44 @@
                     const errorData = await response.json();
                     errorMsg = errorData.error || errorMsg;
                 } catch (e) {
-                    // Response is not JSON
+                    // Response is not JSON - that's okay, server returns empty array on error
                 }
-                console.error(`[License] Server error (${response.status}): ${errorMsg}`);
-                
-                // If server error, keep current state but log warning
-                if (response.status >= 500) {
-                    console.warn('[License] Server error detected. Keeping current license state.');
-                }
+                console.warn(`[License] HTTP error (${response.status}): ${errorMsg}. Keeping current state.`);
                 return isLicenseActive; // Keep current state on error
             }
 
             const licenses = await response.json();
             
             // Check if response is an error object
-            if (licenses.error) {
-                console.error(`[License] API error: ${licenses.error}`);
+            if (licenses && licenses.error) {
+                console.warn(`[License] API error: ${licenses.error}. Keeping current state.`);
                 return isLicenseActive;
             }
             
-            // Check if licenses is an array
-            if (!Array.isArray(licenses)) {
-                console.error('[License] Invalid response format from server');
-                return isLicenseActive;
+            // Handle empty array (server returned empty on error - this is expected behavior)
+            if (!licenses || !Array.isArray(licenses) || licenses.length === 0) {
+                console.warn(`[License] No licenses found or server returned empty array. Keeping current state.`);
+                return isLicenseActive; // Keep current state
             }
             
             const license = licenses.find(l => l.license_key === LICENSE_KEY);
 
             if (!license) {
-                console.warn(`[License] License key "${LICENSE_KEY}" not found`);
-                return false;
+                console.warn(`[License] License key "${LICENSE_KEY}" not found in response`);
+                return false; // License not found = inactive
             }
 
             // Check if license is blocked
             const isBlocked = license.is_blocked === 1 || license.is_blocked === true;
+            const isActive = !isBlocked;
             
-            return !isBlocked; // Return true if active, false if blocked
+            if (isActive) {
+                console.log(`[License] ✓ License "${LICENSE_KEY}" is ACTIVE`);
+            } else {
+                console.log(`[License] ✗ License "${LICENSE_KEY}" is BLOCKED`);
+            }
+            
+            return isActive; // Return true if active, false if blocked
 
         } catch (error) {
             console.error('[License] Error checking license:', error);
