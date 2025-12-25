@@ -571,17 +571,25 @@ def login():
     """Serve the login page"""
     return send_from_directory('frontend', 'login.html')
 
-if __name__ == '__main__':
+# Initialize database on import (for Render.com deployment)
+try:
     init_db()
+    print("✓ Database initialized successfully")
+except Exception as e:
+    print(f"⚠ Warning: Database initialization error: {str(e)}")
+    print("Server will continue, database will be initialized on first request")
+
+if __name__ == '__main__':
     print("=" * 50)
     print("License Management System Server")
     print("=" * 50)
     port = int(os.environ.get('PORT', 5000))
-    host = os.environ.get('HOST', '127.0.0.1')
+    host = os.environ.get('HOST', '0.0.0.0')
     print(f"Server starting on http://{host}:{port}")
     print("Frontend available at: http://localhost:5000")
     print("API available at: http://localhost:5000/api")
-    print("Database initialized")
     print("=" * 50)
+    
+    # Run server
     app.run(debug=True, port=port, host=host)
 
