@@ -162,10 +162,15 @@ def get_licenses():
                 license['devices'] = license.get('devices', 0)
         
         if conn:
-            conn.close()
+            try:
+                conn.close()
+            except:
+                pass
         
         response = jsonify(licenses)
         response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
         return response
     except Exception as e:
         import traceback
@@ -180,8 +185,11 @@ def get_licenses():
                 pass
         
         # Return empty array instead of error to prevent script failure
+        # This allows script to continue working even if server has issues
         response = jsonify([])
         response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
         return response
 
 @app.route('/api/licenses', methods=['POST'])
