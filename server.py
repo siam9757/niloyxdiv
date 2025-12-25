@@ -15,8 +15,9 @@ CORS(app,
      allow_headers=["Content-Type", "Authorization"],
      methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 
-# Database setup
-DATABASE = 'licenses.db'
+# Database setup - use absolute path for Render.com deployment
+import os
+DATABASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'licenses.db')
 
 def init_db():
     """Initialize the database with licenses table"""
@@ -257,8 +258,16 @@ def get_licenses():
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
         return response
 
-@app.route('/api/licenses', methods=['POST'])
+@app.route('/api/licenses', methods=['POST', 'OPTIONS'])
 def create_license():
+    """Handle OPTIONS preflight request"""
+    if request.method == 'OPTIONS':
+        response = jsonify({})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        return response
+    
     """Create a new license"""
     data = request.json
     
@@ -337,12 +346,19 @@ def create_license():
         response.headers.add('Access-Control-Allow-Origin', '*')
         return response, 400
     except Exception as e:
-        conn.close()
+        if conn:
+            try:
+                conn.close()
+            except:
+                pass
         import traceback
-        print(f"Error creating license: {str(e)}")
+        error_msg = str(e)
+        print(f"Error creating license: {error_msg}")
         print(traceback.format_exc())
-        response = jsonify({'error': f'Database error: {str(e)}'})
+        response = jsonify({'error': f'Server error: {error_msg}'})
         response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
         return response, 500
 
 @app.route('/api/licenses/<int:license_id>', methods=['DELETE'])
