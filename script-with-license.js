@@ -158,6 +158,7 @@
             if (licenses.error) {
                 console.error(`[License] API error: ${licenses.error}`);
                 return isLicenseActive;
+            }
             
             // Check if licenses is an array
             if (!Array.isArray(licenses)) {
