@@ -9,7 +9,7 @@
     
     // ========== CONFIGURATION ==========
     const LICENSE_KEY = 'NWSVZT';
-    const API_BASE_URL = 'http://localhost:5000/api';
+    const API_BASE_URL = 'https://niloyxdiv.onrender.com/api';
     const CHECK_INTERVAL = 30000; // Check license every 30 seconds
     // ====================================
     
