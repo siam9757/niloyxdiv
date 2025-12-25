@@ -197,7 +197,7 @@
             return isActive; // Return true if active, false if blocked
 
         } catch (error) {
-            console.error('[License] Error checking license:', error);
+            console.warn('[License] Error checking license (network/server issue):', error.message);
             // If network error or server down, keep current state (don't change)
             if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
                 console.warn('[License] Network error. Cannot reach server. Keeping current state.');

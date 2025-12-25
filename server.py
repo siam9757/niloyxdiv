@@ -134,8 +134,17 @@ def validate_license_key(key):
         return False, "License key must contain only letters (A-Z)"
     return True, None
 
-@app.route('/api/licenses', methods=['GET'])
+@app.route('/api/licenses', methods=['GET', 'OPTIONS'])
 def get_licenses():
+    """Handle OPTIONS preflight request"""
+    if request.method == 'OPTIONS':
+        response = jsonify({})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        return response
+    
+    """Get all licenses with optional search"""
     """Get all licenses with optional search"""
     conn = None
     try:
