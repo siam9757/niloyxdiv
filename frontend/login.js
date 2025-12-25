@@ -1,5 +1,5 @@
 const ADMIN_PASSWORD = 'xx9';
-const API_BASE_URL = 'https://niloyxdiv.onrender.com/api';
+const API_BASE_URL = 'http://localhost:5000/api';
 
 // Check if already logged in
 if (sessionStorage.getItem('admin_authenticated') === 'true') {

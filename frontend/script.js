@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://niloyxdiv.onrender.com/api';
+const API_BASE_URL = 'http://localhost:5000/api';
 
 // Check authentication on page load
 document.addEventListener('DOMContentLoaded', () => {
