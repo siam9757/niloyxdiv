@@ -230,22 +230,29 @@
      * Main License Check and Control Function
      */
     const updateLicenseStatus = async () => {
-        const active = await checkLicenseStatus();
-        
-        if (active && !isLicenseActive) {
-            // License became active - register device
-            isLicenseActive = true;
-            await registerDevice(); // Register device when license becomes active
-            startScript();
-        } else if (!active && isLicenseActive) {
-            // License became blocked
-            isLicenseActive = false;
-            stopScript();
-        } else if (active && isLicenseActive) {
-            // License is still active - update device last_seen
-            await registerDevice();
+        try {
+            const active = await checkLicenseStatus();
+            
+            if (active && !isLicenseActive) {
+                // License became active - register device
+                isLicenseActive = true;
+                await registerDevice(); // Register device when license becomes active
+                startScript();
+            } else if (!active && isLicenseActive) {
+                // License became blocked
+                isLicenseActive = false;
+                stopScript();
+            } else if (active && isLicenseActive) {
+                // License is still active - update device last_seen (don't block on error)
+                registerDevice().catch(err => {
+                    console.warn('[License] Device registration update failed (non-critical):', err);
+                });
+            }
+            // If status didn't change, do nothing
+        } catch (error) {
+            console.error('[License] Error in updateLicenseStatus:', error);
+            // Don't change state on unexpected errors
         }
-        // If status didn't change, do nothing
     };
 
     /**

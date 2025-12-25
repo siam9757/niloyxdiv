@@ -124,14 +124,23 @@ def get_licenses():
         licenses = [dict(row) for row in cursor.fetchall()]
         
         # Update device count for each license (using same connection for efficiency)
+        # Skip device count update if it causes errors - just use existing value
         for license in licenses:
             try:
                 license_key = license['license_key']
-                device_count = update_device_count(license_key, conn)
-                license['devices'] = device_count
+                # Only update if we can safely do so
+                try:
+                    device_count = update_device_count(license_key, conn)
+                    license['devices'] = device_count
+                except Exception as e:
+                    # If update fails, keep existing device count or default to 0
+                    print(f"Warning: Could not update device count for {license_key}: {str(e)}")
+                    if 'devices' not in license:
+                        license['devices'] = 0
             except Exception as e:
-                print(f"Error updating device count for {license_key}: {str(e)}")
-                license['devices'] = 0  # Default to 0 on error
+                print(f"Error processing license {license.get('id', 'unknown')}: {str(e)}")
+                if 'devices' not in license:
+                    license['devices'] = 0
         
         conn.close()
         
