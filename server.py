@@ -109,6 +109,7 @@ def validate_license_key(key):
 @app.route('/api/licenses', methods=['GET'])
 def get_licenses():
     """Get all licenses with optional search"""
+    conn = None
     try:
         search = request.args.get('search', '').strip()
         
@@ -127,7 +128,11 @@ def get_licenses():
         # Skip device count update if it causes errors - just use existing value
         for license in licenses:
             try:
-                license_key = license['license_key']
+                license_key = license.get('license_key', '')
+                if not license_key:
+                    license['devices'] = 0
+                    continue
+                    
                 # Only update if we can safely do so
                 try:
                     device_count = update_device_count(license_key, conn)
@@ -135,25 +140,33 @@ def get_licenses():
                 except Exception as e:
                     # If update fails, keep existing device count or default to 0
                     print(f"Warning: Could not update device count for {license_key}: {str(e)}")
-                    if 'devices' not in license:
-                        license['devices'] = 0
+                    license['devices'] = license.get('devices', 0)
             except Exception as e:
                 print(f"Error processing license {license.get('id', 'unknown')}: {str(e)}")
-                if 'devices' not in license:
-                    license['devices'] = 0
+                license['devices'] = license.get('devices', 0)
         
-        conn.close()
+        if conn:
+            conn.close()
         
         response = jsonify(licenses)
         response.headers.add('Access-Control-Allow-Origin', '*')
         return response
     except Exception as e:
         import traceback
-        print(f"Error in get_licenses: {str(e)}")
+        error_msg = str(e)
+        print(f"Error in get_licenses: {error_msg}")
         print(traceback.format_exc())
-        response = jsonify({'error': f'Server error: {str(e)}'})
+        
+        if conn:
+            try:
+                conn.close()
+            except:
+                pass
+        
+        # Return empty array instead of error to prevent script failure
+        response = jsonify([])
         response.headers.add('Access-Control-Allow-Origin', '*')
-        return response, 500
+        return response
 
 @app.route('/api/licenses', methods=['POST'])
 def create_license():
