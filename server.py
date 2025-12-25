@@ -60,29 +60,45 @@ def update_device_count(license_key, conn=None):
         should_close = True
     
     try:
+        if not license_key:
+            return 0
+            
         cursor = conn.cursor()
         
         # Count unique devices for this license (handle case where table might not exist)
         try:
             cursor.execute('SELECT COUNT(DISTINCT device_fingerprint) FROM device_registrations WHERE license_key = ?', (license_key,))
-            device_count = cursor.fetchone()[0]
-        except sqlite3.OperationalError:
-            # Table doesn't exist yet, return 0
+            result = cursor.fetchone()
+            device_count = result[0] if result else 0
+        except sqlite3.OperationalError as e:
+            # Table doesn't exist yet or other DB error, return 0
+            print(f"Database operational error (non-critical): {str(e)}")
+            device_count = 0
+        except Exception as e:
+            print(f"Error counting devices: {str(e)}")
             device_count = 0
         
-        # Update device count in licenses table
-        cursor.execute('UPDATE licenses SET devices = ? WHERE license_key = ?', (device_count, license_key))
-        conn.commit()
+        # Update device count in licenses table (only if we have a valid connection)
+        try:
+            cursor.execute('UPDATE licenses SET devices = ? WHERE license_key = ?', (device_count, license_key))
+            conn.commit()
+        except Exception as e:
+            print(f"Warning: Could not update device count in licenses table: {str(e)}")
+            # Don't fail - just log warning
+        
         cursor.close()
         
-        if should_close:
+        if should_close and conn:
             conn.close()
         
         return device_count
     except Exception as e:
         print(f"Error updating device count: {str(e)}")
         if should_close and conn:
-            conn.close()
+            try:
+                conn.close()
+            except:
+                pass
         return 0  # Return 0 on error
 
 def get_db_connection():
