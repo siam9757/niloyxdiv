@@ -24,7 +24,6 @@ def after_request(response):
     return response
 
 # Database setup - use absolute path for Render.com deployment
-import os
 DATABASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'licenses.db')
 
 def init_db():
