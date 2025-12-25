@@ -102,10 +102,22 @@ def update_device_count(license_key, conn=None):
         return 0  # Return 0 on error
 
 def get_db_connection():
-    """Get database connection"""
-    conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row
-    return conn
+    """Get database connection with error handling"""
+    try:
+        # Ensure database is initialized
+        init_db()
+        conn = sqlite3.connect(DATABASE)
+        conn.row_factory = sqlite3.Row
+        return conn
+    except Exception as e:
+        print(f"Critical: Database connection error: {str(e)}")
+        # Try to reconnect once
+        try:
+            conn = sqlite3.connect(DATABASE)
+            conn.row_factory = sqlite3.Row
+            return conn
+        except:
+            raise
 
 def generate_license_key():
     """Generate a 6-character alphabet-only license key"""
@@ -129,49 +141,93 @@ def get_licenses():
     try:
         search = request.args.get('search', '').strip()
         
+        # Ensure database is initialized before querying
+        try:
+            init_db()
+        except Exception as db_init_error:
+            print(f"Warning: Database init check failed (non-critical): {str(db_init_error)}")
+        
         conn = get_db_connection()
-        if search:
-            cursor = conn.execute(
-                'SELECT * FROM licenses WHERE username LIKE ? OR license_key LIKE ? ORDER BY id DESC',
-                (f'%{search}%', f'%{search}%')
-            )
-        else:
-            cursor = conn.execute('SELECT * FROM licenses ORDER BY id DESC')
         
-        licenses = [dict(row) for row in cursor.fetchall()]
-        
-        # Update device count for each license (using same connection for efficiency)
-        # Skip device count update if it causes errors - just use existing value
-        for license in licenses:
-            try:
-                license_key = license.get('license_key', '')
-                if not license_key:
-                    license['devices'] = 0
-                    continue
-                    
-                # Only update if we can safely do so
+        try:
+            if search:
+                cursor = conn.execute(
+                    'SELECT * FROM licenses WHERE username LIKE ? OR license_key LIKE ? ORDER BY id DESC',
+                    (f'%{search}%', f'%{search}%')
+                )
+            else:
+                cursor = conn.execute('SELECT * FROM licenses ORDER BY id DESC')
+            
+            rows = cursor.fetchall()
+            licenses = []
+            
+            # Convert rows to dicts safely
+            for row in rows:
                 try:
-                    device_count = update_device_count(license_key, conn)
-                    license['devices'] = device_count
-                except Exception as e:
-                    # If update fails, keep existing device count or default to 0
-                    print(f"Warning: Could not update device count for {license_key}: {str(e)}")
+                    if hasattr(row, 'keys'):
+                        license_dict = dict(row)
+                    else:
+                        # Fallback if row_factory not working
+                        license_dict = {
+                            'id': row[0],
+                            'username': row[1],
+                            'amount': row[2],
+                            'license_key': row[3],
+                            'devices': row[4] if len(row) > 4 else 0,
+                            'is_blocked': row[5] if len(row) > 5 else 0,
+                            'created_at': row[6] if len(row) > 6 else ''
+                        }
+                    licenses.append(license_dict)
+                except Exception as row_error:
+                    print(f"Warning: Error converting row to dict: {str(row_error)}")
+                    continue
+            
+            # Update device count for each license (skip if causes errors)
+            for license in licenses:
+                try:
+                    license_key = license.get('license_key', '')
+                    if not license_key:
+                        license['devices'] = license.get('devices', 0)
+                        continue
+                    
+                    # Try to update device count, but don't fail if it errors
+                    try:
+                        device_count = update_device_count(license_key, conn)
+                        license['devices'] = device_count
+                    except Exception as update_error:
+                        # Keep existing device count or default to 0
+                        print(f"Warning: Could not update device count for {license_key}: {str(update_error)}")
+                        license['devices'] = license.get('devices', 0)
+                except Exception as process_error:
+                    print(f"Warning: Error processing license {license.get('id', 'unknown')}: {str(process_error)}")
                     license['devices'] = license.get('devices', 0)
-            except Exception as e:
-                print(f"Error processing license {license.get('id', 'unknown')}: {str(e)}")
-                license['devices'] = license.get('devices', 0)
-        
-        if conn:
-            try:
-                conn.close()
-            except:
-                pass
-        
-        response = jsonify(licenses)
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
-        return response
+            
+            if conn:
+                try:
+                    conn.close()
+                except:
+                    pass
+            
+            response = jsonify(licenses)
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+            return response
+            
+        except sqlite3.Error as db_error:
+            print(f"Database error in get_licenses query: {str(db_error)}")
+            if conn:
+                try:
+                    conn.close()
+                except:
+                    pass
+            # Return empty array on database error
+            response = jsonify([])
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+            return response
+            
     except Exception as e:
         import traceback
         error_msg = str(e)
@@ -412,13 +468,25 @@ def register_device():
     conn = get_db_connection()
     
     # Check if license exists and is not blocked
-    license = conn.execute('SELECT id, is_blocked FROM licenses WHERE license_key = ?', (license_key,)).fetchone()
-    if not license:
+    try:
+        license = conn.execute('SELECT id, is_blocked FROM licenses WHERE license_key = ?', (license_key,)).fetchone()
+        if not license:
+            conn.close()
+            return jsonify({'error': 'License key not found'}), 404
+        
+        # Convert Row to dict if needed
+        if hasattr(license, 'keys'):
+            license_dict = dict(license)
+        else:
+            license_dict = {'id': license[0], 'is_blocked': license[1]}
+        
+        if license_dict.get('is_blocked') == 1:
+            conn.close()
+            return jsonify({'error': 'License is blocked'}), 403
+    except Exception as e:
         conn.close()
-        return jsonify({'error': 'License key not found'}), 404
-    
-    if license['is_blocked'] == 1:
-        conn.close()
+        print(f"Error checking license: {str(e)}")
+        return jsonify({'error': 'Database error checking license'}), 500
         return jsonify({'error': 'License is blocked'}), 403
     
     # Register or update device
