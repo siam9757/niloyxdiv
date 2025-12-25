@@ -59,21 +59,31 @@ def update_device_count(license_key, conn=None):
         conn = get_db_connection()
         should_close = True
     
-    cursor = conn.cursor()
-    
-    # Count unique devices for this license
-    cursor.execute('SELECT COUNT(DISTINCT device_fingerprint) FROM device_registrations WHERE license_key = ?', (license_key,))
-    device_count = cursor.fetchone()[0]
-    
-    # Update device count in licenses table
-    cursor.execute('UPDATE licenses SET devices = ? WHERE license_key = ?', (device_count, license_key))
-    conn.commit()
-    cursor.close()
-    
-    if should_close:
-        conn.close()
-    
-    return device_count
+    try:
+        cursor = conn.cursor()
+        
+        # Count unique devices for this license (handle case where table might not exist)
+        try:
+            cursor.execute('SELECT COUNT(DISTINCT device_fingerprint) FROM device_registrations WHERE license_key = ?', (license_key,))
+            device_count = cursor.fetchone()[0]
+        except sqlite3.OperationalError:
+            # Table doesn't exist yet, return 0
+            device_count = 0
+        
+        # Update device count in licenses table
+        cursor.execute('UPDATE licenses SET devices = ? WHERE license_key = ?', (device_count, license_key))
+        conn.commit()
+        cursor.close()
+        
+        if should_close:
+            conn.close()
+        
+        return device_count
+    except Exception as e:
+        print(f"Error updating device count: {str(e)}")
+        if should_close and conn:
+            conn.close()
+        return 0  # Return 0 on error
 
 def get_db_connection():
     """Get database connection"""
@@ -99,30 +109,42 @@ def validate_license_key(key):
 @app.route('/api/licenses', methods=['GET'])
 def get_licenses():
     """Get all licenses with optional search"""
-    search = request.args.get('search', '').strip()
-    
-    conn = get_db_connection()
-    if search:
-        cursor = conn.execute(
-            'SELECT * FROM licenses WHERE username LIKE ? OR license_key LIKE ? ORDER BY id DESC',
-            (f'%{search}%', f'%{search}%')
-        )
-    else:
-        cursor = conn.execute('SELECT * FROM licenses ORDER BY id DESC')
-    
-    licenses = [dict(row) for row in cursor.fetchall()]
-    
-    # Update device count for each license (using same connection for efficiency)
-    for license in licenses:
-        license_key = license['license_key']
-        device_count = update_device_count(license_key, conn)
-        license['devices'] = device_count
-    
-    conn.close()
-    
-    response = jsonify(licenses)
-    response.headers.add('Access-Control-Allow-Origin', '*')
-    return response
+    try:
+        search = request.args.get('search', '').strip()
+        
+        conn = get_db_connection()
+        if search:
+            cursor = conn.execute(
+                'SELECT * FROM licenses WHERE username LIKE ? OR license_key LIKE ? ORDER BY id DESC',
+                (f'%{search}%', f'%{search}%')
+            )
+        else:
+            cursor = conn.execute('SELECT * FROM licenses ORDER BY id DESC')
+        
+        licenses = [dict(row) for row in cursor.fetchall()]
+        
+        # Update device count for each license (using same connection for efficiency)
+        for license in licenses:
+            try:
+                license_key = license['license_key']
+                device_count = update_device_count(license_key, conn)
+                license['devices'] = device_count
+            except Exception as e:
+                print(f"Error updating device count for {license_key}: {str(e)}")
+                license['devices'] = 0  # Default to 0 on error
+        
+        conn.close()
+        
+        response = jsonify(licenses)
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response
+    except Exception as e:
+        import traceback
+        print(f"Error in get_licenses: {str(e)}")
+        print(traceback.format_exc())
+        response = jsonify({'error': f'Server error: {str(e)}'})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 500
 
 @app.route('/api/licenses', methods=['POST'])
 def create_license():
