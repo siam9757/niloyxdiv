@@ -21,8 +21,14 @@ DATABASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'licenses.db
 
 def init_db():
     """Initialize the database with licenses table"""
-    conn = sqlite3.connect(DATABASE)
-    cursor = conn.cursor()
+    try:
+        # Ensure directory exists
+        db_dir = os.path.dirname(DATABASE)
+        if db_dir and not os.path.exists(db_dir):
+            os.makedirs(db_dir, exist_ok=True)
+        
+        conn = sqlite3.connect(DATABASE, timeout=10.0)
+        cursor = conn.cursor()
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS licenses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -107,17 +113,24 @@ def get_db_connection():
     try:
         # Ensure database is initialized
         init_db()
-        conn = sqlite3.connect(DATABASE)
+        conn = sqlite3.connect(DATABASE, timeout=10.0)
         conn.row_factory = sqlite3.Row
         return conn
     except Exception as e:
         print(f"Critical: Database connection error: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
         # Try to reconnect once
         try:
-            conn = sqlite3.connect(DATABASE)
+            # Ensure directory exists
+            db_dir = os.path.dirname(DATABASE)
+            if db_dir and not os.path.exists(db_dir):
+                os.makedirs(db_dir, exist_ok=True)
+            conn = sqlite3.connect(DATABASE, timeout=10.0)
             conn.row_factory = sqlite3.Row
             return conn
-        except:
+        except Exception as retry_error:
+            print(f"Critical: Database reconnection failed: {str(retry_error)}")
             raise
 
 def generate_license_key():
