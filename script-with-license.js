@@ -135,10 +135,36 @@
             });
 
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                // Try to get error message from response
+                let errorMsg = `HTTP error! status: ${response.status}`;
+                try {
+                    const errorData = await response.json();
+                    errorMsg = errorData.error || errorMsg;
+                } catch (e) {
+                    // Response is not JSON
+                }
+                console.error(`[License] Server error (${response.status}): ${errorMsg}`);
+                
+                // If server error, keep current state but log warning
+                if (response.status >= 500) {
+                    console.warn('[License] Server error detected. Keeping current license state.');
+                }
+                return isLicenseActive; // Keep current state on error
             }
 
             const licenses = await response.json();
+            
+            // Check if response is an error object
+            if (licenses.error) {
+                console.error(`[License] API error: ${licenses.error}`);
+                return isLicenseActive;
+            
+            // Check if licenses is an array
+            if (!Array.isArray(licenses)) {
+                console.error('[License] Invalid response format from server');
+                return isLicenseActive;
+            }
+            
             const license = licenses.find(l => l.license_key === LICENSE_KEY);
 
             if (!license) {
@@ -153,7 +179,10 @@
 
         } catch (error) {
             console.error('[License] Error checking license:', error);
-            // If server is down, keep current state (don't change)
+            // If network error or server down, keep current state (don't change)
+            if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                console.warn('[License] Network error. Cannot reach server. Keeping current state.');
+            }
             return isLicenseActive;
         }
     };
