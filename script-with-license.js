@@ -3,6 +3,7 @@
  * License Key: OSUBRP
  * Script will only work when license is active
  * Device tracking enabled
+ * Server: https://niloyxdiv.onrender.com
  */
 
 (function() {
@@ -10,7 +11,7 @@
     
     // ========== CONFIGURATION ==========
     const LICENSE_KEY = 'OSUBRP';
-    const API_BASE_URL = 'http://localhost:5000/api';
+    const API_BASE_URL = 'https://niloyxdiv.onrender.com/api';
     const CHECK_INTERVAL = 30000; // Check license every 30 seconds
     // ====================================
     
@@ -86,7 +87,9 @@
                 body: JSON.stringify({
                     license_key: LICENSE_KEY,
                     device_fingerprint: deviceFingerprint
-                })
+                }),
+                mode: 'cors',
+                credentials: 'omit'
             });
 
             if (response.ok) {
@@ -126,7 +129,9 @@
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json'
-                }
+                },
+                mode: 'cors',
+                credentials: 'omit'
             });
 
             if (!response.ok) {
@@ -218,6 +223,7 @@
      */
     const init = () => {
         console.log(`[License] Initializing license validation for key: ${LICENSE_KEY}`);
+        console.log(`[License] Server URL: ${API_BASE_URL}`);
         
         // Generate device fingerprint
         deviceFingerprint = generateDeviceFingerprint();
@@ -272,7 +278,8 @@
         check: updateLicenseStatus,
         getStatus: () => isLicenseActive,
         getLicenseKey: () => LICENSE_KEY,
-        getDeviceFingerprint: () => deviceFingerprint
+        getDeviceFingerprint: () => deviceFingerprint,
+        getServerURL: () => API_BASE_URL
     };
 
 })();
