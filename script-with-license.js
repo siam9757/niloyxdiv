@@ -97,12 +97,22 @@
                 console.log(`[License] Device registered. Total devices: ${data.device_count}`);
                 return true;
             } else {
-                const error = await response.json();
-                console.error('[License] Device registration failed:', error.error);
+                // Try to get error message
+                let errorMsg = `HTTP ${response.status}`;
+                try {
+                    const errorData = await response.json();
+                    errorMsg = errorData.error || errorMsg;
+                } catch (e) {
+                    // Response is not JSON
+                }
+                console.warn(`[License] Device registration failed: ${errorMsg} (non-critical)`);
                 return false;
             }
         } catch (error) {
-            console.error('[License] Error registering device:', error);
+            // Network errors are non-critical - don't spam console
+            if (error.message && !error.message.includes('Failed to fetch')) {
+                console.warn('[License] Device registration error (non-critical):', error.message);
+            }
             return false;
         }
     };
