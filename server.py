@@ -120,7 +120,9 @@ def get_licenses():
     
     conn.close()
     
-    return jsonify(licenses)
+    response = jsonify(licenses)
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    return response
 
 @app.route('/api/licenses', methods=['POST'])
 def create_license():
