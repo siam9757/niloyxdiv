@@ -3,6 +3,10 @@ const API_BASE_URL = window.location.hostname === 'localhost' || window.location
     ? 'http://localhost:5000/api'
     : `${window.location.protocol}//${window.location.host}/api`;
 
+// Log API URL for debugging
+console.log('[Admin Panel] API Base URL:', API_BASE_URL);
+console.log('[Admin Panel] Current URL:', window.location.href);
+
 // Check authentication on page load
 document.addEventListener('DOMContentLoaded', () => {
     // Check if user is authenticated
@@ -58,6 +62,9 @@ document.getElementById('createLicenseForm').addEventListener('submit', async (e
     createBtn.innerHTML = '<span>Creating...</span>';
 
     try {
+        console.log('[Admin Panel] Creating license:', formData);
+        console.log('[Admin Panel] Request URL:', `${API_BASE_URL}/licenses`);
+        
         const response = await fetch(`${API_BASE_URL}/licenses`, {
             method: 'POST',
             headers: {
@@ -67,6 +74,8 @@ document.getElementById('createLicenseForm').addEventListener('submit', async (e
             mode: 'cors',
             credentials: 'omit'
         });
+        
+        console.log('[Admin Panel] Response status:', response.status, response.statusText);
 
         if (response.ok) {
             const license = await response.json();
@@ -157,18 +166,47 @@ async function loadLicenses(searchTerm = '') {
             ? `${API_BASE_URL}/licenses?search=${encodeURIComponent(searchTerm)}`
             : `${API_BASE_URL}/licenses`;
         
-        const response = await fetch(url);
+        console.log('[Admin Panel] Loading licenses from:', url);
+        
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            mode: 'cors',
+            credentials: 'omit'
+        });
+        
+        console.log('[Admin Panel] Load licenses response:', response.status, response.statusText);
+        
         if (response.ok) {
             const licenses = await response.json();
+            console.log('[Admin Panel] Licenses loaded:', licenses.length);
             displayLicenses(licenses);
         } else {
-            console.error('Failed to load licenses');
-            showNotification('Failed to load licenses', 'error');
+            console.error('[Admin Panel] Failed to load licenses:', response.status, response.statusText);
+            let errorMsg = 'Failed to load licenses';
+            try {
+                const errorData = await response.json();
+                errorMsg = errorData.error || errorMsg;
+            } catch (e) {
+                errorMsg = `Server error: ${response.status} ${response.statusText}`;
+            }
+            showNotification(errorMsg, 'error');
+            const tableBody = document.getElementById('licenseTableBody');
+            tableBody.innerHTML = '<tr><td colspan="8" class="empty-state">Error loading licenses. Make sure the server is running.</td></tr>';
         }
     } catch (error) {
-        console.error('Error loading licenses:', error);
+        console.error('[Admin Panel] Error loading licenses:', error);
+        console.error('[Admin Panel] Error details:', error.message, error.stack);
         const tableBody = document.getElementById('licenseTableBody');
-        tableBody.innerHTML = '<tr><td colspan="8" class="empty-state">Error loading licenses. Make sure the server is running.</td></tr>';
+        let errorMsg = 'Error loading licenses. ';
+        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+            errorMsg += 'Cannot connect to server. Please check your connection.';
+        } else {
+            errorMsg += error.message || 'Make sure the server is running.';
+        }
+        tableBody.innerHTML = `<tr><td colspan="8" class="empty-state">${errorMsg}</td></tr>`;
     }
 }
 
