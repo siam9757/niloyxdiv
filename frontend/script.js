@@ -60,7 +60,9 @@ document.getElementById('createLicenseForm').addEventListener('submit', async (e
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(formData)
+            body: JSON.stringify(formData),
+            mode: 'cors',
+            credentials: 'omit'
         });
 
         if (response.ok) {
@@ -78,12 +80,25 @@ document.getElementById('createLicenseForm').addEventListener('submit', async (e
             // Show success message
             showNotification(`License created successfully! Key: ${license.license_key}`, 'success');
         } else {
-            const error = await response.json();
-            showNotification(error.error || 'Failed to create license', 'error');
+            let errorMessage = 'Failed to create license';
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.error || errorMessage;
+            } catch (e) {
+                errorMessage = `Server error: ${response.status} ${response.statusText}`;
+            }
+            console.error('License creation failed:', errorMessage);
+            showNotification(errorMessage, 'error');
         }
     } catch (error) {
         console.error('Error creating license:', error);
-        showNotification('Error creating license. Make sure the server is running.', 'error');
+        let errorMsg = 'Error creating license. ';
+        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+            errorMsg += 'Cannot connect to server. Please check your connection.';
+        } else {
+            errorMsg += error.message || 'Make sure the server is running.';
+        }
+        showNotification(errorMsg, 'error');
     } finally {
         // Re-enable create button
         createBtn.disabled = false;

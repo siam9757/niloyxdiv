@@ -9,7 +9,11 @@ import random
 
 app = Flask(__name__, static_folder='frontend', static_url_path='')
 app.secret_key = secrets.token_hex(32)  # For session management
-CORS(app, supports_credentials=True)
+CORS(app, 
+     supports_credentials=True,
+     resources={r"/api/*": {"origins": "*"}},
+     allow_headers=["Content-Type", "Authorization"],
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 
 # Database setup
 DATABASE = 'licenses.db'
