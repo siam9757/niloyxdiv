@@ -193,16 +193,22 @@ def create_license():
         cursor.close()
         conn.close()
         
-        return jsonify(license_data), 201
+        response = jsonify(license_data)
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 201
     except sqlite3.IntegrityError as e:
         conn.close()
-        return jsonify({'error': 'License key already exists'}), 400
+        response = jsonify({'error': 'License key already exists'})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 400
     except Exception as e:
         conn.close()
         import traceback
         print(f"Error creating license: {str(e)}")
         print(traceback.format_exc())
-        return jsonify({'error': f'Database error: {str(e)}'}), 500
+        response = jsonify({'error': f'Database error: {str(e)}'})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 500
 
 @app.route('/api/licenses/<int:license_id>', methods=['DELETE'])
 def delete_license(license_id):
