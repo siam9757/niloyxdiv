@@ -455,8 +455,16 @@ def generate_key():
     license_key = generate_license_key()
     return jsonify({'license_key': license_key})
 
-@app.route('/api/devices/register', methods=['POST'])
+@app.route('/api/devices/register', methods=['POST', 'OPTIONS'])
 def register_device():
+    """Handle OPTIONS preflight request"""
+    if request.method == 'OPTIONS':
+        response = jsonify({})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        return response
+    
     """Register a device for a license key"""
     data = request.json
     
